@@ -197,6 +197,13 @@ pthread_mutex_lock(&ingress_buf.lock);
 while (ingress_buf.count > 0) {
     msg_t *msg = ingress_buf.data[ingress_buf.head];
     //  free(msg->payload);
+    free(msg->payload);
+    if (msg->auth_token) free(msg->auth_token);
+    free(msg);
+    ingress_buf.head = (ingress_buf.head + 1) % MAX_QUEUE_SIZE;
+    ingress_buf.count--;
+}
+pthread_mutex_unlock(&ingress_buf.lock);
     if (rd_kafka_producev(...) == -1) {
     // Kafka rejected the payload before taking ownership; clean it manually
     free(msg->payload); 
