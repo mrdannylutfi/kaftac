@@ -1,0 +1,37 @@
+apiVersion: 1
+
+groups:
+  - orgId: 1
+    name: 'C Engine Infrastructure Alerts'
+    folder: 'Network Telemetry'
+    interval: '5s' # High frequency evaluation matching your 1s scrape frequency
+    rules:
+      - uid: 'backpressure_spike_detected'
+        title: 'CRITICAL: Ingress Queue Backpressure Activated'
+        condition: 'B'
+        data:
+          # Query A: Fetch the raw vector data from Prometheus
+          - refId: 'A'
+            relativeTimeRange:
+              from: 30
+              to: 0
+            model:
+              expr: 'c_engine_backpressure_events_total'
+              intervalMs: 1000
+              maxDataPoints: 43200
+              refId: 'A'
+          # Query B: Run a structural assertion logic checking for increments
+          - refId: 'B'
+            relativeTimeRange:
+              from: 30
+              to: 0
+            model:
+              expr: 'increase(c_engine_backpressure_events_total[10s]) > 0'
+              refId: 'B'
+              type: 'classic_conditions'
+        noDataState: 'OK'
+        execErrState: 'Alerting'
+        for: '0s' # Trigger instantly the second the rule expression hits true
+        annotations:
+          summary: 'Engine Ingress Sockets Saturating Memory Limits'
+          description: 'The C queue has surpassed its MAX_QUEUE_SIZE threshold. Edge-triggered epoll reads have been temporarily suspended.'
