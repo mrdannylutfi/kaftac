@@ -190,11 +190,17 @@ void* prometheus_metric_exporter_thread(void *arg) {
         send(client_fd, http_response, strlen(http_response), 0);
         close(client_fd);
     }
+
+
  // Drain any leftover memory blocks on shutdown
 pthread_mutex_lock(&ingress_buf.lock);
 while (ingress_buf.count > 0) {
     msg_t *msg = ingress_buf.data[ingress_buf.head];
-    free(msg->payload);
+    //  free(msg->payload);
+    if (rd_kafka_producev(...) == -1) {
+    // Kafka rejected the payload before taking ownership; clean it manually
+    free(msg->payload); 
+}
     if (msg->auth_token) free(msg->auth_token);
     free(msg);
     ingress_buf.head = (ingress_buf.head + 1) % MAX_QUEUE_SIZE;
