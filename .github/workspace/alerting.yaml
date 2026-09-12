@@ -1,0 +1,18 @@
+apiVersion: 1
+
+contactPoints:
+  - name: 'Engine Webhook Dispatcher'
+    receivers:
+      - uid: 'c_engine_webhook_1'
+        type: 'webhook'
+        settings:
+          # Replace with your actual staging/production orchestration endpoint URL
+          url: 'http://docker.internal'
+          httpMethod: 'POST'
+
+policies:
+  - orgId: 1
+    receiver: 'Engine Webhook Dispatcher'
+    groupWait: '5s'     # Quickly group multiple alert instances during a burst
+    groupInterval: '10s'
+    repeatInterval: '5m'
