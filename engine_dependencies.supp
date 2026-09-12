@@ -1,0 +1,85 @@
+# =============================================================================
+# VALGRIND SUPPRESSION FILE FOR LIBRDKAFKA AND AWS C++ SDK DEVELOPMENTS
+# =============================================================================
+
+{
+   librdkafka_global_init_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable,possible
+   fun:*malloc*
+   ...
+   fun:rd_kafka_new
+   ...
+}
+
+{
+   librdkafka_internal_thread_start
+   Memcheck:Leak
+   match-leak-kinds: reachable,possible
+   fun:*alloc*
+   ...
+   fun:rd_kafka_thread_main
+   fun:start_thread
+}
+
+{
+   librdkafka_crypto_and_ssl_deps
+   Memcheck:Leak
+   match-leak-kinds: reachable,possible
+   fun:*malloc*
+   ...
+   obj:*librdkafka*
+   ...
+   fun:SSL_ctx_*
+}
+
+{
+   aws_sdk_core_global_init_leak
+   Memcheck:Leak
+   match-leak-kinds: reachable,possible
+   fun:_Znwm
+   ...
+   fun:_ZN3Aws7InitAPIEENS_10SDKOptionsE
+   ...
+}
+
+{
+   aws_sdk_client_allocation_pool
+   Memcheck:Leak
+   match-leak-kinds: reachable,possible
+   fun:_Znam
+   fun:_Znwm
+   ...
+   fun:*DynamoDBClient*
+   ...
+}
+
+{
+   aws_sdk_curl_http_client_backend
+   Memcheck:Leak
+   match-leak-kinds: reachable,possible
+   fun:*alloc*
+   ...
+   fun:*CurlHttpClient*
+   ...
+}
+
+{
+   aws_sdk_thread_pool_and_tasks
+   Memcheck:Leak
+   match-leak-kinds: reachable,possible
+   fun:*alloc*
+   ...
+   fun:*PooledThreadExecutor*
+   fun:start_thread
+}
+
+{
+   pthreads_internal_tls_allocation
+   Memcheck:Leak
+   match-leak-kinds: reachable,possible
+   fun:*alloc*
+   ...
+   fun:pthread_create*
+   fun:start_thread
+}
