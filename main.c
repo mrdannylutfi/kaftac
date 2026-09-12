@@ -172,7 +172,7 @@ void* prometheus_metric_exporter_thread(void *arg) {
             "HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4\r\nConnection: close\r\n\r\n"
             "# HELP c_engine_ingress_messages_total Total count of raw binary socket frames parsed.\n"
             "c_engine_ingress_messages_total %llu\n\n"
-            "# HELP c_engine_burst_spikes_total Tracks sudden 5 percent traffic load burst occurrences.\n"
+            "# HELP c_engine_burst_spikes_total Tracks sudden 5 percent traffic load occurrences.\n"
             "c_engine_burst_spikes_total %llu\n\n"
             "# HELP c_engine_backpressure_events_total Counts instances socket epoll reads dropped to save memory.\n"
             "c_engine_backpressure_events_total %llu\n\n"
@@ -207,6 +207,60 @@ while (ingress_buf.count > 0) {
     ingress_buf.count--;
 }
 pthread_mutex_unlock(&ingress_buf.lock);
+ while (1) {
+     pthread_mutex_lock(&ingress_buf.lock);
+     if (ingress_buf.count == 0) {
+         pthread_mutex_unlock(&ingress_buf.lock);
+         break;
+     }
 
-    return NULL;
+     // Pop the message under lock, then process it without holding the lock
+     msg_t *msg = ingress_buf.data[ingress_buf.head];
+     ingress_buf.data[ingress_buf.head] = NULL;
+     ingress_buf.head = (ingress_buf.head + 1) % MAX_QUEUE_SIZE;
+     ingress_buf.count--;
+     pthread_mutex_unlock(&ingress_buf.lock);
+
+     // Recreate headers similar to the running producer so metadata is preserved
+     rd_kafka_headers_t *headers = rd_kafka_headers_new(2);
+     const char *security_clearance = "CONFIDENTIAL_LEVEL_3";
+     rd_kafka_header_add(headers, "X-Security-Clearance", -1, security_clearance, strlen(security_clearance));
+     if (msg->auth_token) {
+         rd_kafka_header_add(headers, "X-Session-Token", -1, msg->auth_token, strlen(msg->auth_token));
+     }
+
+     int produce_failed = 0;
+     int attempts = 0;
+     while (attempts < 3) {
+         if (rd_kafka_producev(rk_producer,
+                               RD_KAFKA_V_TOPIC(rd_kafka_topic_name(rkt_ingress)),
+                               RD_KAFKA_V_PARTITION(RD_KAFKA_PARTITION_UA),
+                               RD_KAFKA_V_MSGFLAGS(RD_KAFKA_MSG_F_FREE),
+                               RD_KAFKA_V_VALUE(msg->payload, msg->length),
+                               RD_KAFKA_V_HEADERS(headers),
+                               RD_KAFKA_V_END) == -1) {
+             rd_kafka_resp_err_t err = rd_kafka_last_error();
+             if (err == RD_KAFKA_RESP_ERR__QUEUE_FULL) {
+                 queue_overflow_backpressure_events++;
+                 rd_kafka_poll(rk_producer, 10);
+                 attempts++;
+                 continue;
+             }
+             // Irrecoverable failure: headers must be destroyed and payload freed by caller
+             rd_kafka_headers_destroy(headers);
+             free(msg->payload);
+             produce_failed = 1;
+         }
+         break;
+     }
+
+     rd_kafka_poll(rk_producer, 0);
+     if (msg->auth_token) free(msg->auth_token);
+     free(msg);
+ }
+
+ // Ensure outstanding messages are flushed to the broker before exit (timeout 5s)
+ rd_kafka_flush(rk_producer, 5000);
+
+     return NULL;
 }
