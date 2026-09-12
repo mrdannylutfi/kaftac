@@ -1,0 +1,10 @@
+# Fork PR: Add shutdown drain test and Valgrind CI
+
+This repository contains the changes from the forked branch `add/shutdown-drain-test`.
+
+Included changes:
+- main.c: safe pop-then-produce shutdown drain using rd_kafka_producev with RD_KAFKA_MSG_F_FREE; retry on queue full; free payload on irrecoverable failures; rd_kafka_flush at the end.
+- test_shutdown.c: test harness to simulate produce success, rejection, and deadlock; Valgrind-friendly.
+- .github/workflows/valgrind.yml: GitHub Actions job to run Valgrind on the harness.
+
+Please review and let me know if you'd like any adjustments.
