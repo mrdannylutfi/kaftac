@@ -151,5 +151,43 @@ void* kafka_producer_thread(void *arg) {
         if (msg->auth_token) free(msg->auth_token);
         free(msg);
     }
+    // --- ADDITIONAL EGRESS TELEMETRY COUNTERS ---
+static _Atomic uint64_t total_egress_messages = 0;
+static _Atomic uint64_t dynamodb_failures = 0;
+
+// Upgraded Thread Loop: Prometheus Scrape Engine
+void* prometheus_metric_exporter_thread(void *arg) {
+    // ... [Previous socket setup code remains identical] ...
+    
+    char http_response[2048];
+    while (1) {
+        int client_fd = accept(server_fd, NULL, NULL);
+        if (client_fd < 0) continue;
+        
+        char dummy_buf[1024];
+        recv(client_fd, dummy_buf, sizeof(dummy_buf), 0);
+        
+        snprintf(http_response, sizeof(http_response),
+            "HTTP/1.1 200 OK\r\nContent-Type: text/plain; version=0.0.4\r\nConnection: close\r\n\r\n"
+            "# HELP c_engine_ingress_messages_total Total count of raw binary socket frames parsed.\n"
+            "c_engine_ingress_messages_total %llu\n\n"
+            "# HELP c_engine_burst_spikes_total Tracks sudden 5 percent traffic load burst occurrences.\n"
+            "c_engine_burst_spikes_total %llu\n\n"
+            "# HELP c_engine_backpressure_events_total Counts instances socket epoll reads dropped to save memory.\n"
+            "c_engine_backpressure_events_total %llu\n\n"
+            "# HELP c_engine_egress_messages_total Total count of unified records streamed back out to clients.\n"
+            "c_engine_egress_messages_total %llu\n\n"
+            "# HELP c_engine_dynamodb_failures_total Total count of failed or throttled DynamoDB lookup attempts.\n"
+            "c_engine_dynamodb_failures_total %llu\n",
+            (unsigned long long)total_ingress_messages,
+            (unsigned long long)total_burst_events,
+            (unsigned long long)queue_overflow_backpressure_events,
+            (unsigned long long)total_egress_messages,
+            (unsigned long long)dynamodb_failures
+        );
+        
+        send(client_fd, http_response, strlen(http_response), 0);
+        close(client_fd);
+    }
     return NULL;
 }
