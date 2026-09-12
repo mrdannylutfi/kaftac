@@ -151,6 +151,7 @@ void* kafka_producer_thread(void *arg) {
         if (msg->auth_token) free(msg->auth_token);
         free(msg);
     }
+
     // --- ADDITIONAL EGRESS TELEMETRY COUNTERS ---
 static _Atomic uint64_t total_egress_messages = 0;
 static _Atomic uint64_t dynamodb_failures = 0;
@@ -189,5 +190,17 @@ void* prometheus_metric_exporter_thread(void *arg) {
         send(client_fd, http_response, strlen(http_response), 0);
         close(client_fd);
     }
+ // Drain any leftover memory blocks on shutdown
+pthread_mutex_lock(&ingress_buf.lock);
+while (ingress_buf.count > 0) {
+    msg_t *msg = ingress_buf.data[ingress_buf.head];
+    free(msg->payload);
+    if (msg->auth_token) free(msg->auth_token);
+    free(msg);
+    ingress_buf.head = (ingress_buf.head + 1) % MAX_QUEUE_SIZE;
+    ingress_buf.count--;
+}
+pthread_mutex_unlock(&ingress_buf.lock);
+
     return NULL;
 }
