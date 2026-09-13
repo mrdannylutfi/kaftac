@@ -1,0 +1,8 @@
+# 1. Compile the C++ AWS SDK interface to a native binary object file
+g++ -c -O3 aws_dynamo_wrapper.cpp -o aws_dynamo_wrapper.o -laws-cpp-sdk-core -laws-cpp-sdk-dynamodb
+
+# 2. Compile your core high-velocity C Socket/Kafka infrastructure source
+gcc -c -O3 main.c -o main.o
+
+# 3. Link everything together into a tightly optimized, single Windows executable binary file
+g++ main.o aws_dynamo_wrapper.o -o c_kafka_engine.exe -lrdkafka -lws2_32 -laws-cpp-sdk-core -laws-cpp-sdk-dynamodb
