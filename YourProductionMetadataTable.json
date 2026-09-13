@@ -1,0 +1,24 @@
+{
+  "MessageID": {
+    "S": "a1b2c3d4"
+  },
+  "ClientSessionID": {
+    "S": "sess_998471"
+  },
+  "MetadataPayload": {
+    "S": "{\"device_status\":\"ACTIVE\",\"firmware_version\":\"1.4.2\",\"hardware_revision\":\"V3\"}"
+  },
+  "ProcessingState": {
+    "S": "FINALIZED"
+  },
+  "SystemTimestamp": {
+    "N": "1789234850"
+  },
+  "KafkaMetadata": {
+    "M": {
+      "IngressTopic": { "S": "ingress_topic" },
+      "Partition": { "N": "2" },
+      "Offset": { "N": "8472910" }
+    }
+  }
+}
